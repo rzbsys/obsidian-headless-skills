@@ -4,7 +4,7 @@ Use Obsidian as an agent-readable knowledge graph and memo layer.
 
 This repository currently contains one skill:
 
-- `obsidian-headless`: sync an Obsidian vault when needed, parse notes and links into a local graph, query backlinks and neighbors, and write memo-style notes back into the vault.
+- `obsidian-headless`: parse notes and links from a local vault into a graph, query backlinks and neighbors, and write memo-style notes back into the vault.
 
 ## Install
 
@@ -31,12 +31,36 @@ Restart Codex after installation so the new skill is picked up cleanly.
 ## What This Skill Does
 
 - Use a local Obsidian vault as the graph source instead of automating the desktop UI.
-- Use Obsidian Headless Sync only when the vault must be pulled from Obsidian Sync first.
 - Parse Markdown notes, wikilinks, markdown links, tags, aliases, properties, headings, and optional `.base` files.
 - Build a note-centric graph artifact for exact lookup, backlinks, and bounded neighbor traversal.
 - Create memo-style notes and write them back as plain Markdown plus frontmatter.
+- Assume sync is handled outside the skill. The scripts never call `ob sync`.
 
-## When Obsidian Login Is Required
+## Default Workspace
+
+By default, the scripts in this repository use:
+
+```text
+~/.obsidian_graph_skills/
+├── vault/
+└── cache/
+    ├── graph-config.json
+    └── graph.json
+```
+
+This keeps the vault and graph artifacts out of the current git repository.
+
+You can override the root with:
+
+```bash
+export OBSIDIAN_GRAPH_HOME=/some/other/path
+```
+
+## Sync Model
+
+- This skill assumes the vault already exists locally at `~/.obsidian_graph_skills/vault`.
+- The repository scripts do not call `ob login`, `ob sync`, or `ob sync-setup`.
+- If you want continuous sync, run it separately yourself and point it at `~/.obsidian_graph_skills/vault`.
 
 You do not need to log in to Obsidian if:
 
@@ -53,6 +77,20 @@ Use one of these:
 - `ob login` for interactive setup
 - `OBSIDIAN_AUTH_TOKEN` for CI, cron, or server environments
 
+If you choose to manage sync externally, a typical setup is:
+
+```bash
+mkdir -p ~/.obsidian_graph_skills/vault
+ob sync-setup --vault "My Vault" --path ~/.obsidian_graph_skills/vault
+ob sync --path ~/.obsidian_graph_skills/vault
+```
+
+For a long-running external worker, use:
+
+```bash
+ob sync --path ~/.obsidian_graph_skills/vault --continuous
+```
+
 ## Quick Start
 
 If the vault is already local, you can go straight to graph building.
@@ -60,36 +98,36 @@ If the vault is already local, you can go straight to graph building.
 Bootstrap a starter config:
 
 ```bash
-python3 obsidian-headless/scripts/bootstrap_graph_config.py /path/to/vault --output /tmp/graph-config.json
+python3 obsidian-headless/scripts/bootstrap_graph_config.py
 ```
 
 Build a graph JSON:
 
 ```bash
-python3 obsidian-headless/scripts/build_graph_index.py /path/to/vault --config /tmp/graph-config.json --output /tmp/graph.json
+python3 obsidian-headless/scripts/build_graph_index.py
 ```
 
 Inspect a note:
 
 ```bash
-python3 obsidian-headless/scripts/query_graph.py /tmp/graph.json note "Seed Note"
-python3 obsidian-headless/scripts/query_graph.py /tmp/graph.json backlinks "Seed Note"
-python3 obsidian-headless/scripts/query_graph.py /tmp/graph.json neighbors "Seed Note" --depth 2
+python3 obsidian-headless/scripts/query_graph.py note "Seed Note"
+python3 obsidian-headless/scripts/query_graph.py backlinks "Seed Note"
+python3 obsidian-headless/scripts/query_graph.py neighbors "Seed Note" --depth 2
 ```
 
 Create a quick memo note:
 
 ```bash
-python3 obsidian-headless/scripts/write_note.py /path/to/vault --memo --body "Remember to revisit [[Projects/Alpha]]"
+python3 obsidian-headless/scripts/write_note.py --memo --body "Remember to revisit [[Projects/Alpha]]"
 ```
 
 Create a structured note:
 
 ```bash
-python3 obsidian-headless/scripts/write_note.py /path/to/vault --title "Alpha retro" --folder Meetings --tag project --property status=active --body "Linked to [[Projects/Alpha]]"
+python3 obsidian-headless/scripts/write_note.py --title "Alpha retro" --folder Meetings --tag project --property status=active --body "Linked to [[Projects/Alpha]]"
 ```
 
-If the vault is remote-only, sync first with Obsidian Headless and then run the same graph steps on the synced directory.
+If the vault is being synced continuously in another terminal or service, the scripts here will just read and write the local files under `~/.obsidian_graph_skills/vault`.
 
 ## Example Prompts
 

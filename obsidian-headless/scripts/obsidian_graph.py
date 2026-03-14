@@ -22,6 +22,12 @@ DEFAULT_ATTACHMENT_EXTENSIONS = [
     ".svg",
     ".pdf",
 ]
+DEFAULT_WORKSPACE_ENV = "OBSIDIAN_GRAPH_HOME"
+DEFAULT_WORKSPACE_DIRNAME = ".obsidian_graph_skills"
+DEFAULT_VAULT_DIRNAME = "vault"
+DEFAULT_CACHE_DIRNAME = "cache"
+DEFAULT_GRAPH_CONFIG_FILENAME = "graph-config.json"
+DEFAULT_GRAPH_FILENAME = "graph.json"
 
 INVALID_FILENAME_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
 WIKILINK_RE = re.compile(r"(!)?\[\[([^\]]+)\]\]")
@@ -32,6 +38,29 @@ INLINE_TAG_RE = re.compile(r"(?<![\w/])#([A-Za-z0-9_/-]+)")
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def workspace_root() -> Path:
+    raw = os.environ.get(DEFAULT_WORKSPACE_ENV)
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return (Path.home() / DEFAULT_WORKSPACE_DIRNAME).resolve()
+
+
+def default_vault_root() -> Path:
+    return workspace_root() / DEFAULT_VAULT_DIRNAME
+
+
+def default_cache_dir() -> Path:
+    return workspace_root() / DEFAULT_CACHE_DIRNAME
+
+
+def default_graph_config_path() -> Path:
+    return default_cache_dir() / DEFAULT_GRAPH_CONFIG_FILENAME
+
+
+def default_graph_path() -> Path:
+    return default_cache_dir() / DEFAULT_GRAPH_FILENAME
 
 
 def normalize_key(value: str) -> str:
@@ -148,7 +177,10 @@ def merge_config(config: dict[str, Any] | None) -> dict[str, Any]:
 def load_config(config_path: str | None) -> dict[str, Any]:
     if not config_path:
         return merge_config(None)
-    data = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    path = Path(config_path).expanduser()
+    if not path.exists():
+        return merge_config(None)
+    data = json.loads(path.read_text(encoding="utf-8"))
     return merge_config(data)
 
 
@@ -597,6 +629,7 @@ def write_note(
     include_heading: bool = False,
 ) -> dict[str, Any]:
     root = Path(vault_root).resolve()
+    root.mkdir(parents=True, exist_ok=True)
     if not root.is_dir():
         raise FileNotFoundError(f"Vault path is not a directory: {root}")
 

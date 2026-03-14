@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from obsidian_graph import parse_scalar, utc_now_iso, write_note
+from obsidian_graph import default_vault_root, parse_scalar, utc_now_iso, write_note
 
 
 def parse_properties(items: list[str]) -> dict[str, object]:
@@ -27,7 +27,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Create a Markdown note inside an Obsidian vault.",
     )
-    parser.add_argument("vault", help="Path to the local Obsidian vault")
+    parser.add_argument(
+        "vault",
+        nargs="?",
+        default=str(default_vault_root()),
+        help="Path to the local Obsidian vault. Defaults to ~/.obsidian_graph_skills/vault",
+    )
     parser.add_argument("--title", help="Note title and default filename stem")
     parser.add_argument("--folder", help="Relative folder inside the vault")
     parser.add_argument("--body", help="Note body text")

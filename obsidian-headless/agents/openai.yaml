@@ -1,4 +1,4 @@
 interface:
   display_name: "Obsidian Knowledge Graph"
   short_description: "Use Obsidian vaults as agent knowledge graphs"
-  default_prompt: "Use $obsidian-headless to sync an Obsidian vault when needed, build/query it as a local knowledge graph, or capture a new note for the agent."
+  default_prompt: "Use $obsidian-headless to read ~/.obsidian_graph_skills/vault as a local knowledge graph or capture a new note for the agent."

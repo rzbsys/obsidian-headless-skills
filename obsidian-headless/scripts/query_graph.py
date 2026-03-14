@@ -7,9 +7,11 @@ import json
 from collections import deque
 from pathlib import Path
 
+from obsidian_graph import default_graph_path
+
 
 def load_graph(graph_path: str) -> dict:
-    return json.loads(Path(graph_path).read_text(encoding="utf-8"))
+    return json.loads(Path(graph_path).expanduser().read_text(encoding="utf-8"))
 
 
 def build_note_map(graph: dict) -> dict[str, dict]:
@@ -75,7 +77,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Query a graph JSON produced by build_graph_index.py.",
     )
-    parser.add_argument("graph", help="Path to graph JSON")
+    parser.add_argument(
+        "--graph",
+        default=str(default_graph_path()),
+        help="Path to graph JSON. Defaults to ~/.obsidian_graph_skills/cache/graph.json",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     note_parser = subparsers.add_parser("note", help="Resolve and print one note")

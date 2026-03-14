@@ -15,12 +15,15 @@
 
 Inference from the official docs: the machine-usable graph comes from local vault files, not from the Graph View UI. Obsidian stores notes as Markdown, stores metadata such as properties in frontmatter, supports internal links and tags as first-class note relationships, and visualizes those relationships in Graph View. An external agent can therefore reconstruct a practical knowledge graph directly from the vault filesystem.
 
+For this skill, treat sync as an external concern. The bundled scripts operate only on local files and do not invoke `ob`.
+
 ## Build The Graph In Layers
 
 ### Layer 1: vault snapshot
 
 - Use the local vault if it already exists.
-- Otherwise sync it locally with Obsidian Headless.
+- Prefer `~/.obsidian_graph_skills/vault` as the default local vault path to avoid writing notes into the current repo.
+- If the user maintains a continuous sync worker separately, just read the files it keeps current.
 
 ### Layer 1.5: bootstrap config
 
@@ -137,7 +140,6 @@ Keep the first implementation note-centric. Add heading nodes or block nodes onl
 
 ### Simple mode
 
-- Run `ob sync --path ...` if the source is remote.
 - Re-scan all Markdown files.
 - Rebuild the graph.
 
@@ -154,9 +156,9 @@ Prefer the simple mode first. Move to incremental indexing only after correctnes
 Use this bundled flow for a minimal implementation:
 
 ```shell
-python3 scripts/bootstrap_graph_config.py /path/to/vault --output /path/to/graph-config.json
-python3 scripts/build_graph_index.py /path/to/vault --config /path/to/graph-config.json --output /path/to/graph.json
-python3 scripts/query_graph.py /path/to/graph.json note "Seed Note"
+python3 scripts/bootstrap_graph_config.py
+python3 scripts/build_graph_index.py
+python3 scripts/query_graph.py note "Seed Note"
 ```
 
 This pattern keeps the integration transparent:
@@ -179,8 +181,8 @@ Once this flow is correct, move the same logic behind an MCP server, API, cron j
 Minimal note-creation pattern:
 
 ```shell
-python3 scripts/write_note.py /path/to/vault --memo --body "Remember to connect [[Alpha]] with [[Roadmap]]"
-python3 scripts/write_note.py /path/to/vault --title "Alpha summary" --folder Inbox --tag project --property source=agent --body "Backlinks: [[Alpha]]"
+python3 scripts/write_note.py --memo --body "Remember to connect [[Alpha]] with [[Roadmap]]"
+python3 scripts/write_note.py --title "Alpha summary" --folder Inbox --tag project --property source=agent --body "Backlinks: [[Alpha]]"
 ```
 
 Rebuild the graph after a batch of writes if the agent needs those new notes immediately available for traversal.

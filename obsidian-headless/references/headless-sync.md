@@ -2,9 +2,9 @@
 
 ## Use This Reference
 
-- Use this reference only when the vault is not already available locally.
-- Treat Headless Sync as the ingestion and refresh layer for the knowledge graph.
-- After sync, operate on local files instead of trying to query the `ob` process directly.
+- Use this reference only when the user explicitly asks how to configure sync outside the skill.
+- Treat Headless Sync as an external ingestion and refresh layer for the knowledge graph.
+- After sync is configured elsewhere, operate on local files instead of trying to query the `ob` process directly.
 
 ## Official Sources
 
@@ -30,17 +30,19 @@
 npm install -g obsidian-headless
 ob login
 ob sync-list-remote
-ob sync-setup --vault "My Vault" --path /path/to/vault
-ob sync --path /path/to/vault
+mkdir -p ~/.obsidian_graph_skills/vault
+ob sync-setup --vault "My Vault" --path ~/.obsidian_graph_skills/vault
+ob sync --path ~/.obsidian_graph_skills/vault
 ```
 
-Use `ob sync --path /path/to/vault --continuous` only when the agent host is meant to keep a long-running sync worker alive.
+Use `ob sync --path ~/.obsidian_graph_skills/vault --continuous` only when the agent host is meant to keep a long-running sync worker alive.
 
 ## Automation Workflow
 
 ```shell
 export OBSIDIAN_AUTH_TOKEN="your-token"
-ob sync --path /srv/obsidian-vault
+mkdir -p ~/.obsidian_graph_skills/vault
+ob sync --path ~/.obsidian_graph_skills/vault
 ```
 
 Run parsing or indexing only after the sync command succeeds.
@@ -50,6 +52,8 @@ Run parsing or indexing only after the sync command succeeds.
 - Use one-shot sync before scheduled indexing jobs.
 - Use continuous sync only for long-lived agent services that need near-real-time freshness.
 - Re-check `ob sync-status --path ...` when the vault appears stale or partially linked.
+- Prefer a dedicated path such as `~/.obsidian_graph_skills/vault` instead of the current working directory.
+- Do not treat these commands as part of the normal runtime path of this skill; they are external setup and operations steps.
 
 ## Troubleshooting Cues
 

@@ -1,21 +1,29 @@
 ---
 name: obsidian-headless
-description: Use Obsidian vaults as an agent-readable knowledge graph by syncing a vault with Obsidian Headless (`obsidian-headless`, `ob`) when needed and then parsing notes, links, tags, properties, and related metadata from the local filesystem. Use when Codex needs to build, query, refresh, or write back to an Obsidian-based memory layer, personal knowledge base, RAG corpus, backlink graph, note relationship graph, or memo capture flow. Trigger on requests such as "use Obsidian as a knowledge graph", "sync vault for an agent", "parse Obsidian links/properties", "create a note in my vault", "headless sync for AI", or Korean requests like "옵시디언을 지식 그래프로", "obsidian headless로 에이전트 메모리", "vault를 그래프로 읽기", or "메모 노트 만들어줘". Do not use this skill for Obsidian CLI or desktop-app control tasks.
+description: Use Obsidian vaults as an agent-readable knowledge graph by parsing notes, links, tags, properties, and related metadata from a local filesystem vault, typically `~/.obsidian_graph_skills/vault`. Use when Codex needs to build, query, refresh, or write back to an Obsidian-based memory layer, personal knowledge base, RAG corpus, backlink graph, note relationship graph, or memo capture flow. Trigger on requests such as "use Obsidian as a knowledge graph", "parse Obsidian links/properties", "create a note in my vault", or Korean requests like "옵시디언을 지식 그래프로", "obsidian headless로 에이전트 메모리", "vault를 그래프로 읽기", or "메모 노트 만들어줘". Assume sync is handled externally by the user and do not run Obsidian sync commands as part of this skill. Do not use this skill for Obsidian CLI or desktop-app control tasks.
 ---
 
 # Obsidian Headless
 
 ## Overview
 
-Use Obsidian Headless as a vault access layer and the vault filesystem as the actual graph source. Build the agent's knowledge graph from Markdown files, internal links, tags, and properties instead of trying to automate the Obsidian desktop UI.
+Use the vault filesystem as the graph source. Build the agent's knowledge graph from Markdown files, internal links, tags, and properties instead of trying to automate the Obsidian desktop UI.
 
-Read [references/knowledge-graph-implementation.md](references/knowledge-graph-implementation.md) for graph modeling and implementation details. Read [references/headless-sync.md](references/headless-sync.md) only when the vault must be synced locally first.
+Read [references/knowledge-graph-implementation.md](references/knowledge-graph-implementation.md) for graph modeling and implementation details. Read [references/headless-sync.md](references/headless-sync.md) only as an external setup reference when the user explicitly asks how to configure sync outside this skill.
+
+Default workspace root: `~/.obsidian_graph_skills`. Prefer `~/.obsidian_graph_skills/vault` for the vault and `~/.obsidian_graph_skills/cache` for graph artifacts so notes do not land in the current git repository.
+
+## External Sync Ownership
+
+- Assume the user is already keeping `~/.obsidian_graph_skills/vault` up to date, for example with `ob sync --path ~/.obsidian_graph_skills/vault --continuous`.
+- Do not run `ob login`, `ob sync`, `ob sync-setup`, `ob sync-list-remote`, or other sync commands as part of this skill.
+- If the vault is missing or stale, tell the user that sync is managed externally and continue only on the local files that exist.
 
 ## Match The Request
 
-- Use this skill for agent memory, knowledge graph, vault parsing, backlink traversal, graph-aware retrieval, memo note creation, and headless vault sync.
-- Treat Obsidian Headless as an ingestion or refresh mechanism, not as the graph itself.
-- Skip Headless entirely when the vault already exists on local disk and is current enough to parse directly.
+- Use this skill for agent memory, knowledge graph, vault parsing, backlink traversal, graph-aware retrieval, and memo note creation.
+- Treat the local vault as the source of truth for this skill's execution.
+- Skip sync concerns entirely during normal use.
 - Decline desktop-app automation and do not explain Obsidian CLI workflows here.
 
 ## Choose The Access Path
@@ -25,12 +33,6 @@ Read [references/knowledge-graph-implementation.md](references/knowledge-graph-i
 - Use direct file access when the vault is already present on disk.
 - Parse `.md`, frontmatter, `.obsidian/`, and optional `.base` files directly.
 - Prefer this path for local agents, indexing jobs, and offline analysis.
-
-### Use Headless Sync first
-
-- Use Headless Sync when the vault lives in Obsidian Sync and the agent host needs a local copy.
-- Sync to a working directory, then parse the resulting files as a normal vault.
-- Re-run `ob sync` or `ob sync --continuous` before indexing when freshness matters.
 
 ## Bootstrap The Agent Graph
 
@@ -45,9 +47,10 @@ Read [references/knowledge-graph-implementation.md](references/knowledge-graph-i
 - Prefer the bundled bootstrap script for this first pass:
 
 ```shell
-python3 scripts/bootstrap_graph_config.py /path/to/vault --output /path/to/graph-config.json
+python3 scripts/bootstrap_graph_config.py
 ```
 
+- By default this writes `~/.obsidian_graph_skills/cache/graph-config.json`.
 - Review the generated config before building the graph. Tighten `exclude_dirs` and folder hints if the vault has unusual structure.
 
 ## Follow This Workflow
@@ -55,7 +58,7 @@ python3 scripts/bootstrap_graph_config.py /path/to/vault --output /path/to/graph
 ### 1. Acquire a local vault snapshot
 
 - Confirm the vault path.
-- If the vault is remote-only, sync it locally with Obsidian Headless.
+- Assume `~/.obsidian_graph_skills/vault` is maintained externally when no path is provided.
 - Keep secrets out of logs and replies.
 
 ### 2. Build graph primitives
@@ -74,8 +77,10 @@ python3 scripts/bootstrap_graph_config.py /path/to/vault --output /path/to/graph
 - Prefer the bundled index builder for the first implementation:
 
 ```shell
-python3 scripts/build_graph_index.py /path/to/vault --config /path/to/graph-config.json --output /path/to/graph.json
+python3 scripts/build_graph_index.py
 ```
+
+- By default this reads `~/.obsidian_graph_skills/cache/graph-config.json` when present and writes `~/.obsidian_graph_skills/cache/graph.json`.
 
 ### 4. Expose query operations
 
@@ -86,14 +91,14 @@ python3 scripts/build_graph_index.py /path/to/vault --config /path/to/graph-conf
 - Use the bundled query helper for quick inspection:
 
 ```shell
-python3 scripts/query_graph.py /path/to/graph.json note "Seed Note"
-python3 scripts/query_graph.py /path/to/graph.json backlinks "Seed Note"
-python3 scripts/query_graph.py /path/to/graph.json neighbors "Seed Note" --depth 2
+python3 scripts/query_graph.py note "Seed Note"
+python3 scripts/query_graph.py backlinks "Seed Note"
+python3 scripts/query_graph.py neighbors "Seed Note" --depth 2
 ```
 
 ### 5. Refresh safely
 
-- Refresh by syncing first when the source of truth is remote.
+- Refresh by re-reading the local vault snapshot.
 - Re-index incrementally by changed files when possible.
 - Fall back to a full rebuild when link resolution or aliases changed broadly.
 
@@ -106,8 +111,8 @@ python3 scripts/query_graph.py /path/to/graph.json neighbors "Seed Note" --depth
 - Use the bundled note writer for simple capture flows:
 
 ```shell
-python3 scripts/write_note.py /path/to/vault --memo --body "Remember to revisit the Alpha design"
-python3 scripts/write_note.py /path/to/vault --title "Alpha retro" --folder Meetings --tag project --property status=active --body "Linked to [[Projects/Alpha]]"
+python3 scripts/write_note.py --memo --body "Remember to revisit the Alpha design"
+python3 scripts/write_note.py --title "Alpha retro" --folder Meetings --tag project --property status=active --body "Linked to [[Projects/Alpha]]"
 ```
 
 ## Use These Defaults
@@ -130,6 +135,6 @@ python3 scripts/write_note.py /path/to/vault --title "Alpha retro" --folder Meet
 ## Answering Guidance
 
 - Separate the answer into access, parse, index, query, and refresh steps when describing an implementation.
-- Recommend the simplest viable architecture first: sync or read locally, parse Markdown, build adjacency lists, expose graph queries.
+- Recommend the simplest viable architecture first: read locally, parse Markdown, build adjacency lists, expose graph queries.
 - Call out when a statement is an inference from the official docs rather than an explicitly documented API contract.
-- Use [references/headless-sync.md](references/headless-sync.md) for exact `ob` commands and [references/knowledge-graph-implementation.md](references/knowledge-graph-implementation.md) for graph schema and parser guidance.
+- Use [references/knowledge-graph-implementation.md](references/knowledge-graph-implementation.md) for graph schema and parser guidance. Use [references/headless-sync.md](references/headless-sync.md) only when the user explicitly asks how to configure external sync.
